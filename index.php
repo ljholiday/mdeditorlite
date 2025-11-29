@@ -6,7 +6,7 @@
 
 // Configuration
 define('REPOS_PATH', __DIR__ . '/repos');  // Path to your markdown repos
-define('PASSWORD', 'HaveMore4un!');  // Change this!
+define('PASSWORD', 'change_this_password');  // Change this!
 
 // Simple authentication
 session_start();
@@ -274,6 +274,37 @@ if (isset($_GET['action'])) {
             color: #34495e;
             margin-bottom: 0.25rem;
             font-size: 0.85rem;
+            cursor: pointer;
+            user-select: none;
+            padding: 0.25rem;
+            border-radius: 4px;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .file-group-title:hover {
+            background: #d5dbdb;
+        }
+        
+        .file-group-title .expand-icon {
+            font-size: 0.7rem;
+            transition: transform 0.2s;
+        }
+        
+        .file-group-title.collapsed .expand-icon {
+            transform: rotate(-90deg);
+        }
+        
+        .file-group-files {
+            margin-left: 0.5rem;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        
+        .file-group-files.collapsed {
+            max-height: 0 !important;
         }
         
         .file-item {
@@ -454,17 +485,46 @@ if (isset($_GET['action'])) {
             // Build HTML
             let html = '<div class="file-list">';
             Object.keys(grouped).sort().forEach(dir => {
+                const dirId = 'dir-' + dir.replace(/[^a-zA-Z0-9]/g, '-');
                 html += '<div class="file-group">';
-                html += `<div class="file-group-title">${dir === '.' ? 'Root' : dir}</div>`;
+                html += `<div class="file-group-title" onclick="toggleDirectory('${dirId}')">`;
+                html += `<span class="expand-icon">▼</span>`;
+                html += `${dir === '.' ? 'Root' : dir}`;
+                html += `</div>`;
+                html += `<div class="file-group-files" id="${dirId}">`;
                 grouped[dir].forEach(file => {
                     const active = currentFile === file.path ? 'active' : '';
                     html += `<div class="file-item ${active}" onclick="loadFile('${file.path}')">${file.name}</div>`;
                 });
                 html += '</div>';
+                html += '</div>';
             });
             html += '</div>';
             
             fileList.innerHTML = html;
+            
+            // Calculate initial heights for smooth transitions
+            document.querySelectorAll('.file-group-files').forEach(el => {
+                el.style.maxHeight = el.scrollHeight + 'px';
+            });
+        }
+        
+        // Toggle directory collapse/expand
+        function toggleDirectory(dirId) {
+            const filesDiv = document.getElementById(dirId);
+            const titleDiv = filesDiv.previousElementSibling;
+            
+            if (filesDiv.classList.contains('collapsed')) {
+                // Expand
+                filesDiv.classList.remove('collapsed');
+                titleDiv.classList.remove('collapsed');
+                filesDiv.style.maxHeight = filesDiv.scrollHeight + 'px';
+            } else {
+                // Collapse
+                filesDiv.classList.add('collapsed');
+                titleDiv.classList.add('collapsed');
+                filesDiv.style.maxHeight = '0';
+            }
         }
         
         // Load file content
