@@ -4,7 +4,7 @@
  * A lightweight web-based markdown file editor
  */
 
-// Prevent any output before JSON responses. Probably a redundant "fix"
+// Prevent any output before JSON responses
 error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING);
 ini_set('display_errors', '0');
 
@@ -547,16 +547,6 @@ if (isset($_GET['action'])) {
             overflow: hidden;
         }
         
-        .editor-toolbar {
-            padding: 0.5rem 1rem;
-            background: #f8f9fa;
-            border-bottom: 1px solid #dee2e6;
-            display: flex;
-            gap: 0.5rem;
-            flex-shrink: 0;
-            flex-wrap: wrap;
-        }
-        
         .editor-wrapper {
             flex: 1;
             overflow: auto;
@@ -609,21 +599,50 @@ if (isset($_GET['action'])) {
         }
         
         @media (max-width: 768px) {
+            body {
+                padding-top: 60px; /* Account for fixed header */
+            }
+            
+            .header {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                z-index: 1100;
+            }
+            
             .hamburger-btn {
                 display: flex;
             }
             
             .sidebar {
                 position: fixed;
-                top: 0;
+                top: 60px; /* Below fixed header */
                 left: 0;
                 bottom: 0;
                 z-index: 1000;
                 box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+                transform: translateX(0);
+                transition: transform 0.3s ease;
             }
             
             .sidebar.mobile-hidden {
                 transform: translateX(-100%);
+            }
+            
+            .sidebar-overlay {
+                position: fixed;
+                top: 60px; /* Below fixed header */
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.5);
+                z-index: 999;
+                display: none;
+            }
+            
+            .sidebar-overlay.active {
+                display: block;
             }
             
             .current-file {
@@ -638,6 +657,10 @@ if (isset($_GET['action'])) {
                 padding: 0.4rem 0.8rem;
                 font-size: 0.85rem;
             }
+            
+            .header-right {
+                gap: 0.5rem;
+            }
         }
         
         @media (max-width: 480px) {
@@ -650,11 +673,20 @@ if (isset($_GET['action'])) {
             }
             
             .header-right {
-                gap: 0.5rem;
+                gap: 0.4rem;
             }
             
             .header-left {
                 gap: 0.5rem;
+            }
+            
+            .btn {
+                padding: 0.35rem 0.6rem;
+                font-size: 0.8rem;
+            }
+            
+            .header h1 {
+                font-size: 0.9rem;
             }
         }
     </style>
@@ -670,6 +702,8 @@ if (isset($_GET['action'])) {
             <h1>Markdown Editor</h1>
         </div>
         <div class="header-right">
+            <button class="btn btn-success btn-mobile" id="saveBtn" disabled>Save</button>
+            <button class="btn btn-primary btn-mobile" id="refreshBtn">Refresh</button>
             <span class="current-file" id="currentFile">No file selected</span>
             <button class="btn btn-secondary" onclick="location.href='?logout=1'">Logout</button>
         </div>
@@ -683,10 +717,6 @@ if (isset($_GET['action'])) {
         </div>
         
         <div class="editor-container">
-            <div class="editor-toolbar">
-                <button class="btn btn-success" id="saveBtn" disabled>Save</button>
-                <button class="btn btn-primary" id="refreshBtn">Refresh</button>
-            </div>
             <div class="editor-wrapper">
                 <div id="noFileSelected" class="no-file-selected">
                     Select a file from the sidebar to begin editing
