@@ -1,0 +1,25 @@
+[01-Dec-2025 18:04:20 UTC] PHP Fatal error:  Uncaught UnexpectedValueException: RecursiveDirectoryIterator::__construct(/home/ljholida/public_html/mdeditorlite../repos): Failed to open directory: No such file or directory in /home/ljholida/public_html/mdeditorlite/index.php:93
+Stack trace:
+#0 /home/ljholida/public_html/mdeditorlite/index.php(93): RecursiveDirectoryIterator->__construct()
+#1 {main}
+  thrown in /home/ljholida/public_html/mdeditorlite/index.php on line 93
+[01-Dec-2025 18:08:15 UTC] PHP Fatal error:  Uncaught UnexpectedValueException: RecursiveDirectoryIterator::__construct(/home/ljholida/public_html/mdeditorlite/home/ljholida/www/repos): Failed to open directory: No such file or directory in /home/ljholida/public_html/mdeditorlite/index.php:93
+Stack trace:
+#0 /home/ljholida/public_html/mdeditorlite/index.php(93): RecursiveDirectoryIterator->__construct()
+#1 {main}
+  thrown in /home/ljholida/public_html/mdeditorlite/index.php on line 93
+[01-Dec-2025 18:08:22 UTC] PHP Fatal error:  Uncaught UnexpectedValueException: RecursiveDirectoryIterator::__construct(/home/ljholida/public_html/mdeditorlite/home/ljholida/www/repos): Failed to open directory: No such file or directory in /home/ljholida/public_html/mdeditorlite/index.php:93
+Stack trace:
+#0 /home/ljholida/public_html/mdeditorlite/index.php(93): RecursiveDirectoryIterator->__construct()
+#1 {main}
+  thrown in /home/ljholida/public_html/mdeditorlite/index.php on line 93
+[01-Dec-2025 18:08:32 UTC] PHP Fatal error:  Uncaught UnexpectedValueException: RecursiveDirectoryIterator::__construct(/home/ljholida/public_html/mdeditorlite/home/ljholida/www/repos): Failed to open directory: No such file or directory in /home/ljholida/public_html/mdeditorlite/index.php:93
+Stack trace:
+#0 /home/ljholida/public_html/mdeditorlite/index.php(93): RecursiveDirectoryIterator->__construct()
+#1 {main}
+  thrown in /home/ljholida/public_html/mdeditorlite/index.php on line 93
+[01-Dec-2025 18:09:22 UTC] PHP Fatal error:  Uncaught UnexpectedValueException: RecursiveDirectoryIterator::__construct(/home/ljholida/public_html/mdeditorlite/home/ljholida/public_html/repos): Failed to open directory: No such file or directory in /home/ljholida/public_html/mdeditorlite/index.php:93
+Stack trace:
+#0 /home/ljholida/public_html/mdeditorlite/index.php(93): RecursiveDirectoryIterator->__construct()
+#1 {main}
+  thrown in /home/ljholida/public_html/mdeditorlite/index.php on line 93

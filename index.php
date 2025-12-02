@@ -5,14 +5,35 @@
  */
 
 // Configuration
-define('REPOS_PATH', __DIR__ . '/repos');  // Path to your markdown repos
-define('PASSWORD', 'change_this_password');  // Change this!
+define('REPOS_PATH', __DIR__ . '/../repos');  // Path to your markdown repos (supports relative paths like '../repos')
+define('PASSWORD', 'HaveMore4un!');  // Change this! Default: changeme123
+
+// Resolve REPOS_PATH to absolute path (supports relative paths)
+function getReposPath() {
+    $path = REPOS_PATH;
+    
+    // If it's already an absolute path, return it
+    if (substr($path, 0, 1) === '/' || preg_match('/^[a-zA-Z]:/', $path)) {
+        return realpath($path) ?: $path;
+    }
+    
+    // Handle relative paths
+    $basePath = __DIR__;
+    $fullPath = $basePath . '/' . $path;
+    $resolved = realpath($fullPath);
+    
+    return $resolved ?: $fullPath;
+}
+
+$reposPath = getReposPath();
 
 // Simple authentication
 session_start();
 if (isset($_POST['password'])) {
     if ($_POST['password'] === PASSWORD) {
         $_SESSION['authenticated'] = true;
+        header('Location: ' . $_SERVER['PHP_SELF']);
+        exit;
     }
 }
 
@@ -36,43 +57,63 @@ if (!isset($_SESSION['authenticated'])) {
                 display: flex;
                 justify-content: center;
                 align-items: center;
-                height: 100vh;
+                min-height: 100vh;
                 margin: 0;
                 background: #f5f5f5;
+                padding: 1rem;
             }
             .login-box {
                 background: white;
                 padding: 2rem;
                 border-radius: 8px;
                 box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                width: 100%;
+                max-width: 400px;
+            }
+            h2 {
+                margin-bottom: 1.5rem;
+                color: #2c3e50;
+            }
+            form {
+                display: flex;
+                flex-direction: column;
+                gap: 1rem;
             }
             input[type="password"] {
-                padding: 0.5rem;
+                padding: 0.75rem;
                 font-size: 1rem;
                 border: 1px solid #ddd;
                 border-radius: 4px;
-                width: 250px;
+                width: 100%;
             }
             button {
-                padding: 0.5rem 1rem;
+                padding: 0.75rem 1rem;
                 font-size: 1rem;
                 background: #007bff;
                 color: white;
                 border: none;
                 border-radius: 4px;
                 cursor: pointer;
-                margin-left: 0.5rem;
+                width: 100%;
             }
             button:hover {
                 background: #0056b3;
+            }
+            button:active {
+                background: #004085;
+            }
+            @media (max-width: 480px) {
+                .login-box {
+                    padding: 1.5rem;
+                }
             }
         </style>
     </head>
     <body>
         <div class="login-box">
             <h2>Markdown Editor</h2>
-            <form method="post">
-                <input type="password" name="password" placeholder="Password" autofocus>
+            <form method="post" action="">
+                <input type="password" name="password" placeholder="Enter password" autofocus required>
                 <button type="submit">Login</button>
             </form>
         </div>
@@ -89,19 +130,23 @@ if (isset($_GET['action'])) {
     if ($_GET['action'] === 'list') {
         // List all markdown files
         $files = [];
+        
+        if (!is_dir($reposPath)) {
+            echo json_encode(['success' => false, 'error' => 'REPOS_PATH directory not found: ' . $reposPath]);
+            exit;
+        }
+        
         $iterator = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator(REPOS_PATH, RecursiveDirectoryIterator::SKIP_DOTS)
+            new RecursiveDirectoryIterator($reposPath, RecursiveDirectoryIterator::SKIP_DOTS)
         );
         
         foreach ($iterator as $file) {
             if ($file->isFile() && in_array($file->getExtension(), ['md', 'markdown'])) {
-                $relativePath = str_replace(REPOS_PATH . '/', '', $file->getPathname());
+                $relativePath = str_replace($reposPath . '/', '', $file->getPathname());
                 $files[] = [
                     'path' => $relativePath,
                     'name' => $file->getFilename(),
-                    'dir' => dirname($relativePath),
-                    'size' => $file->getSize(),
-                    'modified' => $file->getMTime()
+                    'dir' => dirname($relativePath)
                 ];
             }
         }
@@ -118,11 +163,11 @@ if (isset($_GET['action'])) {
     
     if ($_GET['action'] === 'load' && isset($_GET['file'])) {
         // Load file content
-        $filePath = REPOS_PATH . '/' . $_GET['file'];
+        $filePath = $reposPath . '/' . $_GET['file'];
         
         // Security: prevent directory traversal
         $realPath = realpath($filePath);
-        $realReposPath = realpath(REPOS_PATH);
+        $realReposPath = realpath($reposPath);
         
         if ($realPath && $realReposPath && strpos($realPath, $realReposPath) === 0 && file_exists($filePath)) {
             $content = file_get_contents($filePath);
@@ -135,11 +180,11 @@ if (isset($_GET['action'])) {
     
     if ($_GET['action'] === 'save' && isset($_POST['file']) && isset($_POST['content'])) {
         // Save file content
-        $filePath = REPOS_PATH . '/' . $_POST['file'];
+        $filePath = $reposPath . '/' . $_POST['file'];
         
         // Security: prevent directory traversal
         $realPath = realpath(dirname($filePath));
-        $realReposPath = realpath(REPOS_PATH);
+        $realReposPath = realpath($reposPath);
         
         if ($realPath && $realReposPath && strpos($realPath, $realReposPath) === 0) {
             if (file_put_contents($filePath, $_POST['content']) !== false) {
@@ -150,6 +195,12 @@ if (isset($_GET['action'])) {
         } else {
             echo json_encode(['success' => false, 'error' => 'Access denied']);
         }
+        exit;
+    }
+    
+    // Catch-all for unhandled actions
+    if (isset($_GET['action'])) {
+        echo json_encode(['success' => false, 'error' => 'Unknown action or missing parameters: ' . $_GET['action']]);
         exit;
     }
 }
@@ -185,6 +236,7 @@ if (isset($_GET['action'])) {
             justify-content: space-between;
             align-items: center;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            flex-shrink: 0;
         }
         
         .header h1 {
@@ -201,6 +253,10 @@ if (isset($_GET['action'])) {
         .current-file {
             font-size: 0.9rem;
             color: #ecf0f1;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         
         .btn {
@@ -210,6 +266,7 @@ if (isset($_GET['action'])) {
             cursor: pointer;
             font-size: 0.9rem;
             transition: background 0.2s;
+            white-space: nowrap;
         }
         
         .btn-primary {
@@ -251,6 +308,7 @@ if (isset($_GET['action'])) {
             border-right: 1px solid #bdc3c7;
             overflow-y: auto;
             padding: 1rem;
+            flex-shrink: 0;
         }
         
         .sidebar h3 {
@@ -261,22 +319,21 @@ if (isset($_GET['action'])) {
             letter-spacing: 0.5px;
         }
         
-        .file-list {
+        .file-tree {
             list-style: none;
         }
         
-        .file-group {
-            margin-bottom: 1rem;
+        .tree-item {
+            margin-bottom: 2px;
         }
         
-        .file-group-title {
+        .tree-directory {
             font-weight: 600;
             color: #34495e;
-            margin-bottom: 0.25rem;
             font-size: 0.85rem;
             cursor: pointer;
             user-select: none;
-            padding: 0.25rem;
+            padding: 0.25rem 0.5rem;
             border-radius: 4px;
             transition: background 0.2s;
             display: flex;
@@ -284,45 +341,69 @@ if (isset($_GET['action'])) {
             gap: 0.5rem;
         }
         
-        .file-group-title:hover {
+        .tree-directory:hover {
             background: #d5dbdb;
         }
         
-        .file-group-title .expand-icon {
+        .tree-directory .expand-icon {
             font-size: 0.7rem;
             transition: transform 0.2s;
+            display: inline-block;
+            width: 12px;
+            text-align: center;
         }
         
-        .file-group-title.collapsed .expand-icon {
+        .tree-directory.collapsed .expand-icon {
             transform: rotate(-90deg);
         }
         
-        .file-group-files {
-            margin-left: 0.5rem;
+        .directory-icon {
+            font-size: 0.9rem;
+        }
+        
+        .directory-name {
+            flex: 1;
+        }
+        
+        .tree-children {
             overflow: hidden;
-            transition: max-height 0.3s ease-out;
+            transition: max-height 0.3s ease-out, opacity 0.2s ease-out;
+            opacity: 1;
         }
         
-        .file-group-files.collapsed {
+        .tree-children.collapsed {
             max-height: 0 !important;
+            opacity: 0;
         }
         
-        .file-item {
-            padding: 0.5rem;
+        .tree-file {
+            padding: 0.4rem 0.5rem;
             cursor: pointer;
             border-radius: 4px;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             transition: background 0.2s;
             margin-bottom: 2px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            word-break: break-word;
         }
         
-        .file-item:hover {
+        .tree-file:hover {
             background: #d5dbdb;
         }
         
-        .file-item.active {
+        .tree-file.active {
             background: #3498db;
             color: white;
+        }
+        
+        .file-icon {
+            font-size: 0.85rem;
+        }
+        
+        .file-name {
+            flex: 1;
         }
         
         .editor-container {
@@ -338,17 +419,27 @@ if (isset($_GET['action'])) {
             border-bottom: 1px solid #dee2e6;
             display: flex;
             gap: 0.5rem;
+            flex-shrink: 0;
+            flex-wrap: wrap;
         }
         
         .editor-wrapper {
             flex: 1;
-            overflow: hidden;
+            overflow: auto;
             padding: 1rem;
+            display: flex;
+            flex-direction: column;
         }
         
         .CodeMirror {
             height: 100% !important;
             font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .CodeMirror-scroll {
+            overflow: auto !important;
         }
         
         .no-file-selected {
@@ -358,6 +449,8 @@ if (isset($_GET['action'])) {
             height: 100%;
             color: #7f8c8d;
             font-size: 1.1rem;
+            text-align: center;
+            padding: 1rem;
         }
         
         .status-message {
@@ -385,6 +478,33 @@ if (isset($_GET['action'])) {
             .sidebar {
                 width: 250px;
             }
+            
+            .current-file {
+                display: none;
+            }
+            
+            .header h1 {
+                font-size: 1rem;
+            }
+            
+            .btn {
+                padding: 0.4rem 0.8rem;
+                font-size: 0.85rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .sidebar {
+                width: 200px;
+            }
+            
+            .header {
+                padding: 0.5rem;
+            }
+            
+            .header-right {
+                gap: 0.5rem;
+            }
         }
     </style>
 </head>
@@ -406,7 +526,7 @@ if (isset($_GET['action'])) {
         <div class="editor-container">
             <div class="editor-toolbar">
                 <button class="btn btn-success" id="saveBtn" disabled>💾 Save</button>
-                <button class="btn btn-primary" id="refreshBtn">🔄 Refresh Files</button>
+                <button class="btn btn-primary" id="refreshBtn">🔄 Refresh</button>
             </div>
             <div class="editor-wrapper">
                 <div id="noFileSelected" class="no-file-selected">
@@ -420,11 +540,11 @@ if (isset($_GET['action'])) {
     <div class="status-message" id="statusMessage"></div>
     
     <script src="https://cdn.jsdelivr.net/npm/easymde@2.18.0/dist/easymde.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
     <script>
         let editor = null;
         let currentFile = null;
         let originalContent = '';
+        let expandedDirs = new Set(); // Track which directories are expanded
         
         // Initialize EasyMDE
         function initEditor() {
@@ -441,7 +561,8 @@ if (isset($_GET['action'])) {
                     'link', 'image', '|',
                     'preview', 'side-by-side', 'fullscreen', '|',
                     'guide'
-                ]
+                ],
+                minHeight: '400px'
             });
             
             editor.codemirror.on('change', function() {
@@ -456,6 +577,8 @@ if (isset($_GET['action'])) {
                 .then(data => {
                     if (data.success) {
                         displayFileList(data.files);
+                    } else {
+                        document.getElementById('fileList').innerHTML = '<p style="color: red;">Error: ' + (data.error || 'Unknown error') + '</p>';
                     }
                 })
                 .catch(error => {
@@ -464,7 +587,86 @@ if (isset($_GET['action'])) {
                 });
         }
         
-        // Display file list grouped by directory
+        // Build hierarchical tree structure from flat file list
+        function buildFileTree(files) {
+            const tree = { name: 'root', type: 'directory', children: [], files: [] };
+            
+            files.forEach(file => {
+                const parts = file.path.split('/');
+                const fileName = parts.pop();
+                
+                let currentNode = tree;
+                
+                // Navigate/create directory structure
+                parts.forEach(part => {
+                    if (part === '.') return; // Skip root marker
+                    
+                    let childNode = currentNode.children.find(c => c.name === part && c.type === 'directory');
+                    if (!childNode) {
+                        childNode = { name: part, type: 'directory', children: [], files: [], path: '' };
+                        currentNode.children.push(childNode);
+                    }
+                    currentNode = childNode;
+                });
+                
+                // Add file to the current directory node
+                currentNode.files.push({
+                    name: fileName,
+                    path: file.path,
+                    fullData: file
+                });
+            });
+            
+            // Sort directories and files alphabetically
+            function sortNode(node) {
+                node.children.sort((a, b) => a.name.localeCompare(b.name));
+                node.files.sort((a, b) => a.name.localeCompare(b.name));
+                node.children.forEach(sortNode);
+            }
+            sortNode(tree);
+            
+            return tree;
+        }
+        
+        // Render tree node recursively
+        function renderTreeNode(node, level = 0, parentPath = '') {
+            let html = '';
+            const indent = level * 20; // 20px per level
+            
+            // Render directories
+            node.children.forEach(child => {
+                const fullPath = parentPath ? `${parentPath}/${child.name}` : child.name;
+                const dirId = 'dir-' + fullPath.replace(/[^a-zA-Z0-9]/g, '-');
+                const isCollapsed = !expandedDirs.has(dirId); // Default collapsed (not in set = collapsed)
+                
+                html += '<div class="tree-item" style="padding-left: ' + indent + 'px;">';
+                html += `<div class="tree-directory ${isCollapsed ? 'collapsed' : ''}" data-dir-id="${dirId}">`;
+                html += `<span class="expand-icon">▼</span>`;
+                html += `<span class="directory-icon">📁</span>`;
+                html += `<span class="directory-name">${escapeHtml(child.name)}</span>`;
+                html += `</div>`;
+                html += `<div class="tree-children ${isCollapsed ? 'collapsed' : ''}" id="${dirId}">`;
+                
+                // Recursively render children
+                html += renderTreeNode(child, level + 1, fullPath);
+                
+                html += '</div>';
+                html += '</div>';
+            });
+            
+            // Render files at this level
+            node.files.forEach(file => {
+                const active = currentFile === file.path ? 'active' : '';
+                html += `<div class="tree-file ${active}" style="padding-left: ${indent + 20}px;" data-file-path="${file.path.replace(/"/g, '&quot;')}">`;
+                html += `<span class="file-icon">📄</span>`;
+                html += `<span class="file-name">${escapeHtml(file.name)}</span>`;
+                html += `</div>`;
+            });
+            
+            return html;
+        }
+        
+        // Display file list as hierarchical tree
         function displayFileList(files) {
             const fileList = document.getElementById('fileList');
             
@@ -473,62 +675,93 @@ if (isset($_GET['action'])) {
                 return;
             }
             
-            // Group files by directory
-            const grouped = {};
-            files.forEach(file => {
-                if (!grouped[file.dir]) {
-                    grouped[file.dir] = [];
-                }
-                grouped[file.dir].push(file);
-            });
+            // Build tree structure
+            const tree = buildFileTree(files);
             
-            // Build HTML
-            let html = '<div class="file-list">';
-            Object.keys(grouped).sort().forEach(dir => {
-                const dirId = 'dir-' + dir.replace(/[^a-zA-Z0-9]/g, '-');
-                html += '<div class="file-group">';
-                html += `<div class="file-group-title" onclick="toggleDirectory('${dirId}')">`;
-                html += `<span class="expand-icon">▼</span>`;
-                html += `${dir === '.' ? 'Root' : dir}`;
-                html += `</div>`;
-                html += `<div class="file-group-files" id="${dirId}">`;
-                grouped[dir].forEach(file => {
-                    const active = currentFile === file.path ? 'active' : '';
-                    html += `<div class="file-item ${active}" onclick="loadFile('${file.path}')">${file.name}</div>`;
-                });
-                html += '</div>';
-                html += '</div>';
-            });
+            // Render tree
+            let html = '<div class="file-tree">';
+            html += renderTreeNode(tree, 0);
             html += '</div>';
             
             fileList.innerHTML = html;
             
-            // Calculate initial heights for smooth transitions
-            document.querySelectorAll('.file-group-files').forEach(el => {
-                el.style.maxHeight = el.scrollHeight + 'px';
+            // Set initial heights for smooth transitions
+            requestAnimationFrame(() => {
+                document.querySelectorAll('.tree-children').forEach(el => {
+                    if (!el.classList.contains('collapsed')) {
+                        el.style.maxHeight = el.scrollHeight + 'px';
+                    } else {
+                        el.style.maxHeight = '0';
+                    }
+                });
+            });
+            
+            // Add event delegation for clicks
+            setupTreeEventListeners();
+        }
+        
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Setup event listeners for tree interactions
+        let treeListenerAdded = false;
+        function setupTreeEventListeners() {
+            const fileList = document.getElementById('fileList');
+            
+            // Only add listener once
+            if (treeListenerAdded) return;
+            treeListenerAdded = true;
+            
+            // Use event delegation for better performance
+            fileList.addEventListener('click', function(e) {
+                // Handle directory clicks
+                const directoryEl = e.target.closest('.tree-directory');
+                if (directoryEl) {
+                    const dirId = directoryEl.dataset.dirId;
+                    console.log('Directory clicked:', dirId);
+                    toggleDirectory(dirId);
+                    return;
+                }
+                
+                // Handle file clicks
+                const fileEl = e.target.closest('.tree-file');
+                if (fileEl) {
+                    const filePath = fileEl.dataset.filePath;
+                    console.log('File clicked:', filePath);
+                    loadFile(filePath);
+                    return;
+                }
             });
         }
         
         // Toggle directory collapse/expand
         function toggleDirectory(dirId) {
-            const filesDiv = document.getElementById(dirId);
-            const titleDiv = filesDiv.previousElementSibling;
+            const childrenDiv = document.getElementById(dirId);
+            const directoryDiv = childrenDiv.previousElementSibling;
             
-            if (filesDiv.classList.contains('collapsed')) {
+            if (childrenDiv.classList.contains('collapsed')) {
                 // Expand
-                filesDiv.classList.remove('collapsed');
-                titleDiv.classList.remove('collapsed');
-                filesDiv.style.maxHeight = filesDiv.scrollHeight + 'px';
+                childrenDiv.classList.remove('collapsed');
+                directoryDiv.classList.remove('collapsed');
+                childrenDiv.style.maxHeight = childrenDiv.scrollHeight + 'px';
+                expandedDirs.add(dirId); // Track as expanded
             } else {
                 // Collapse
-                filesDiv.classList.add('collapsed');
-                titleDiv.classList.add('collapsed');
-                filesDiv.style.maxHeight = '0';
+                childrenDiv.classList.add('collapsed');
+                directoryDiv.classList.add('collapsed');
+                childrenDiv.style.maxHeight = '0';
+                expandedDirs.delete(dirId); // Remove from expanded
             }
         }
         
         // Load file content
         function loadFile(filePath) {
+            console.log('loadFile called with:', filePath);
+            
             if (editor && hasUnsavedChanges()) {
                 if (!confirm('You have unsaved changes. Do you want to discard them?')) {
                     return;
@@ -538,11 +771,13 @@ if (isset($_GET['action'])) {
             fetch(`?action=load&file=${encodeURIComponent(filePath)}`)
                 .then(response => response.json())
                 .then(data => {
+                    console.log('File load response:', data);
                     if (data.success) {
                         currentFile = filePath;
                         originalContent = data.content;
                         
                         if (!editor) {
+                            console.log('Initializing editor');
                             document.getElementById('noFileSelected').style.display = 'none';
                             document.getElementById('editor').style.display = 'block';
                             initEditor();
@@ -553,25 +788,37 @@ if (isset($_GET['action'])) {
                         document.getElementById('saveBtn').disabled = true;
                         
                         // Update active state in file list
-                        document.querySelectorAll('.file-item').forEach(item => {
-                            item.classList.remove('active');
+                        document.querySelectorAll('.tree-file').forEach(item => {
+                            if (item.dataset.filePath === filePath) {
+                                item.classList.add('active');
+                            } else {
+                                item.classList.remove('active');
+                            }
                         });
-                        event.target.classList.add('active');
+                        
+                        console.log('File loaded successfully:', filePath);
                     } else {
                         showStatus('Error loading file: ' + data.error, 'error');
                     }
                 })
                 .catch(error => {
-                    console.error('Error:', error);
+                    console.error('Error loading file:', error);
                     showStatus('Error loading file', 'error');
                 });
         }
         
         // Save file
         function saveFile() {
-            if (!currentFile) return;
+            if (!currentFile) {
+                console.error('Save failed: No file selected');
+                showStatus('Error: No file selected', 'error');
+                return;
+            }
             
             const content = editor.value();
+            console.log('Saving file:', currentFile);
+            console.log('Content length:', content.length);
+            
             const formData = new FormData();
             formData.append('file', currentFile);
             formData.append('content', content);
@@ -580,19 +827,23 @@ if (isset($_GET['action'])) {
                 method: 'POST',
                 body: formData
             })
-                .then(response => response.json())
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    return response.json();
+                })
                 .then(data => {
+                    console.log('Save response:', data);
                     if (data.success) {
                         originalContent = content;
                         document.getElementById('saveBtn').disabled = true;
                         showStatus('File saved successfully!', 'success');
                     } else {
-                        showStatus('Error saving file: ' + data.error, 'error');
+                        showStatus('Error saving file: ' + (data.error || 'Unknown error'), 'error');
                     }
                 })
                 .catch(error => {
-                    console.error('Error:', error);
-                    showStatus('Error saving file', 'error');
+                    console.error('Save error:', error);
+                    showStatus('Error saving file: ' + error.message, 'error');
                 });
         }
         
@@ -604,7 +855,14 @@ if (isset($_GET['action'])) {
         
         function checkForChanges() {
             if (currentFile) {
-                document.getElementById('saveBtn').disabled = !hasUnsavedChanges();
+                const hasChanges = hasUnsavedChanges();
+                console.log('Check for changes:', {
+                    currentFile: currentFile,
+                    hasChanges: hasChanges,
+                    currentLength: editor ? editor.value().length : 0,
+                    originalLength: originalContent.length
+                });
+                document.getElementById('saveBtn').disabled = !hasChanges;
             }
         }
         
@@ -621,7 +879,10 @@ if (isset($_GET['action'])) {
         }
         
         // Event listeners
-        document.getElementById('saveBtn').addEventListener('click', saveFile);
+        document.getElementById('saveBtn').addEventListener('click', function() {
+            console.log('Save button clicked');
+            saveFile();
+        });
         document.getElementById('refreshBtn').addEventListener('click', loadFileList);
         
         // Keyboard shortcuts
