@@ -4,6 +4,10 @@
  * A lightweight web-based markdown file editor
  */
 
+// Prevent any output before JSON responses. Probably a redundant "fix"
+error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING);
+ini_set('display_errors', '0');
+
 // Configuration
 define('REPOS_PATH', __DIR__ . '/../repos');  // Path to your markdown repos (supports relative paths like '../repos')
 define('PASSWORD', 'HaveMore4un!');  // Change this! Default: changeme123
@@ -43,7 +47,17 @@ if (isset($_GET['logout'])) {
     exit;
 }
 
+// Check authentication - but handle AJAX requests differently
 if (!isset($_SESSION['authenticated'])) {
+    // If this is an AJAX request (has 'action' parameter), return JSON error
+    if (isset($_GET['action']) || (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && $_SERVER['HTTP_X_REQUESTED_WITH'] === 'XMLHttpRequest')) {
+        header('Content-Type: application/json');
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Not authenticated', 'redirect' => true]);
+        exit;
+    }
+    
+    // Otherwise show the login page
     ?>
     <!DOCTYPE html>
     <html>
@@ -190,10 +204,10 @@ if (isset($_GET['action'])) {
             if (file_put_contents($filePath, $_POST['content']) !== false) {
                 echo json_encode(['success' => true]);
             } else {
-                echo json_encode(['success' => false, 'error' => 'Failed to save file']);
+                echo json_encode(['success' => false, 'error' => 'Failed to save file - check permissions']);
             }
         } else {
-            echo json_encode(['success' => false, 'error' => 'Access denied']);
+            echo json_encode(['success' => false, 'error' => 'Access denied - path verification failed']);
         }
         exit;
     }
@@ -237,6 +251,44 @@ if (isset($_GET['action'])) {
             align-items: center;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             flex-shrink: 0;
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .hamburger-btn {
+            display: none;
+            flex-direction: column;
+            justify-content: space-around;
+            width: 30px;
+            height: 25px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+        }
+        
+        .hamburger-btn span {
+            width: 100%;
+            height: 3px;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s;
+        }
+        
+        .hamburger-btn.active span:nth-child(1) {
+            transform: rotate(45deg) translate(8px, 8px);
+        }
+        
+        .hamburger-btn.active span:nth-child(2) {
+            opacity: 0;
+        }
+        
+        .hamburger-btn.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(7px, -7px);
         }
         
         .header h1 {
@@ -309,6 +361,26 @@ if (isset($_GET['action'])) {
             overflow-y: auto;
             padding: 1rem;
             flex-shrink: 0;
+            transition: transform 0.3s ease;
+        }
+        
+        .sidebar.mobile-hidden {
+            transform: translateX(-100%);
+        }
+        
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+        
+        .sidebar-overlay.active {
+            display: block;
         }
         
         .sidebar h3 {
@@ -359,6 +431,32 @@ if (isset($_GET['action'])) {
         
         .directory-icon {
             font-size: 0.9rem;
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            position: relative;
+        }
+        
+        .directory-icon::before {
+            content: '';
+            position: absolute;
+            width: 14px;
+            height: 11px;
+            border: 2px solid #f39c12;
+            border-radius: 2px;
+            background: transparent;
+            top: 2px;
+        }
+        
+        .directory-icon::after {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 2px;
+            background: #f39c12;
+            top: 0;
+            left: 0;
+            border-radius: 2px 2px 0 0;
         }
         
         .directory-name {
@@ -400,6 +498,42 @@ if (isset($_GET['action'])) {
         
         .file-icon {
             font-size: 0.85rem;
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            position: relative;
+        }
+        
+        .file-icon::before {
+            content: '';
+            position: absolute;
+            width: 12px;
+            height: 15px;
+            border: 2px solid #95a5a6;
+            border-radius: 1px;
+            background: white;
+            top: 0;
+            left: 0;
+        }
+        
+        .file-icon::after {
+            content: '';
+            position: absolute;
+            width: 6px;
+            height: 1px;
+            background: #95a5a6;
+            top: 5px;
+            left: 3px;
+            box-shadow: 0 3px 0 #95a5a6, 0 6px 0 #95a5a6;
+        }
+        
+        .tree-file.active .file-icon::before {
+            border-color: white;
+        }
+        
+        .tree-file.active .file-icon::after {
+            background: white;
+            box-shadow: 0 3px 0 white, 0 6px 0 white;
         }
         
         .file-name {
@@ -475,8 +609,21 @@ if (isset($_GET['action'])) {
         }
         
         @media (max-width: 768px) {
+            .hamburger-btn {
+                display: flex;
+            }
+            
             .sidebar {
-                width: 250px;
+                position: fixed;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                z-index: 1000;
+                box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            }
+            
+            .sidebar.mobile-hidden {
+                transform: translateX(-100%);
             }
             
             .current-file {
@@ -495,7 +642,7 @@ if (isset($_GET['action'])) {
         
         @media (max-width: 480px) {
             .sidebar {
-                width: 200px;
+                width: 250px;
             }
             
             .header {
@@ -505,12 +652,23 @@ if (isset($_GET['action'])) {
             .header-right {
                 gap: 0.5rem;
             }
+            
+            .header-left {
+                gap: 0.5rem;
+            }
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>📝 Markdown Editor</h1>
+        <div class="header-left">
+            <button class="hamburger-btn" id="hamburgerBtn" aria-label="Toggle menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <h1>Markdown Editor</h1>
+        </div>
         <div class="header-right">
             <span class="current-file" id="currentFile">No file selected</span>
             <button class="btn btn-secondary" onclick="location.href='?logout=1'">Logout</button>
@@ -518,15 +676,16 @@ if (isset($_GET['action'])) {
     </div>
     
     <div class="main">
-        <div class="sidebar">
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+        <div class="sidebar" id="sidebar">
             <h3>Files</h3>
             <div id="fileList">Loading...</div>
         </div>
         
         <div class="editor-container">
             <div class="editor-toolbar">
-                <button class="btn btn-success" id="saveBtn" disabled>💾 Save</button>
-                <button class="btn btn-primary" id="refreshBtn">🔄 Refresh</button>
+                <button class="btn btn-success" id="saveBtn" disabled>Save</button>
+                <button class="btn btn-primary" id="refreshBtn">Refresh</button>
             </div>
             <div class="editor-wrapper">
                 <div id="noFileSelected" class="no-file-selected">
@@ -573,8 +732,21 @@ if (isset($_GET['action'])) {
         // Load file list
         function loadFileList() {
             fetch('?action=list')
-                .then(response => response.json())
+                .then(response => {
+                    if (response.status === 401) {
+                        window.location.reload();
+                        return;
+                    }
+                    return response.json();
+                })
                 .then(data => {
+                    if (!data) return; // Handle reload case
+                    
+                    if (data.redirect) {
+                        window.location.reload();
+                        return;
+                    }
+                    
                     if (data.success) {
                         displayFileList(data.files);
                     } else {
@@ -642,7 +814,7 @@ if (isset($_GET['action'])) {
                 html += '<div class="tree-item" style="padding-left: ' + indent + 'px;">';
                 html += `<div class="tree-directory ${isCollapsed ? 'collapsed' : ''}" data-dir-id="${dirId}">`;
                 html += `<span class="expand-icon">▼</span>`;
-                html += `<span class="directory-icon">📁</span>`;
+                html += `<span class="directory-icon"></span>`;
                 html += `<span class="directory-name">${escapeHtml(child.name)}</span>`;
                 html += `</div>`;
                 html += `<div class="tree-children ${isCollapsed ? 'collapsed' : ''}" id="${dirId}">`;
@@ -658,7 +830,7 @@ if (isset($_GET['action'])) {
             node.files.forEach(file => {
                 const active = currentFile === file.path ? 'active' : '';
                 html += `<div class="tree-file ${active}" style="padding-left: ${indent + 20}px;" data-file-path="${file.path.replace(/"/g, '&quot;')}">`;
-                html += `<span class="file-icon">📄</span>`;
+                html += `<span class="file-icon"></span>`;
                 html += `<span class="file-name">${escapeHtml(file.name)}</span>`;
                 html += `</div>`;
             });
@@ -722,7 +894,6 @@ if (isset($_GET['action'])) {
                 const directoryEl = e.target.closest('.tree-directory');
                 if (directoryEl) {
                     const dirId = directoryEl.dataset.dirId;
-                    console.log('Directory clicked:', dirId);
                     toggleDirectory(dirId);
                     return;
                 }
@@ -731,7 +902,6 @@ if (isset($_GET['action'])) {
                 const fileEl = e.target.closest('.tree-file');
                 if (fileEl) {
                     const filePath = fileEl.dataset.filePath;
-                    console.log('File clicked:', filePath);
                     loadFile(filePath);
                     return;
                 }
@@ -760,8 +930,6 @@ if (isset($_GET['action'])) {
         
         // Load file content
         function loadFile(filePath) {
-            console.log('loadFile called with:', filePath);
-            
             if (editor && hasUnsavedChanges()) {
                 if (!confirm('You have unsaved changes. Do you want to discard them?')) {
                     return;
@@ -769,15 +937,26 @@ if (isset($_GET['action'])) {
             }
             
             fetch(`?action=load&file=${encodeURIComponent(filePath)}`)
-                .then(response => response.json())
+                .then(response => {
+                    if (response.status === 401) {
+                        window.location.reload();
+                        return;
+                    }
+                    return response.json();
+                })
                 .then(data => {
-                    console.log('File load response:', data);
+                    if (!data) return; // Handle reload case
+                    
+                    if (data.redirect) {
+                        window.location.reload();
+                        return;
+                    }
+                    
                     if (data.success) {
                         currentFile = filePath;
                         originalContent = data.content;
                         
                         if (!editor) {
-                            console.log('Initializing editor');
                             document.getElementById('noFileSelected').style.display = 'none';
                             document.getElementById('editor').style.display = 'block';
                             initEditor();
@@ -795,8 +974,6 @@ if (isset($_GET['action'])) {
                                 item.classList.remove('active');
                             }
                         });
-                        
-                        console.log('File loaded successfully:', filePath);
                     } else {
                         showStatus('Error loading file: ' + data.error, 'error');
                     }
@@ -810,15 +987,11 @@ if (isset($_GET['action'])) {
         // Save file
         function saveFile() {
             if (!currentFile) {
-                console.error('Save failed: No file selected');
                 showStatus('Error: No file selected', 'error');
                 return;
             }
             
             const content = editor.value();
-            console.log('Saving file:', currentFile);
-            console.log('Content length:', content.length);
-            
             const formData = new FormData();
             formData.append('file', currentFile);
             formData.append('content', content);
@@ -828,12 +1001,28 @@ if (isset($_GET['action'])) {
                 body: formData
             })
                 .then(response => {
-                    console.log('Response status:', response.status);
+                    // Handle authentication errors
+                    if (response.status === 401) {
+                        showStatus('Session expired. Reloading...', 'error');
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1000);
+                        return response.json();
+                    }
+                    
                     return response.json();
                 })
                 .then(data => {
-                    console.log('Save response:', data);
-                    if (data.success) {
+                    // Check for redirect flag (authentication required)
+                    if (data && data.redirect) {
+                        showStatus('Session expired. Please log in again.', 'error');
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1500);
+                        return;
+                    }
+                    
+                    if (data && data.success) {
                         originalContent = content;
                         document.getElementById('saveBtn').disabled = true;
                         showStatus('File saved successfully!', 'success');
@@ -855,14 +1044,7 @@ if (isset($_GET['action'])) {
         
         function checkForChanges() {
             if (currentFile) {
-                const hasChanges = hasUnsavedChanges();
-                console.log('Check for changes:', {
-                    currentFile: currentFile,
-                    hasChanges: hasChanges,
-                    currentLength: editor ? editor.value().length : 0,
-                    originalLength: originalContent.length
-                });
-                document.getElementById('saveBtn').disabled = !hasChanges;
+                document.getElementById('saveBtn').disabled = !hasUnsavedChanges();
             }
         }
         
@@ -879,11 +1061,35 @@ if (isset($_GET['action'])) {
         }
         
         // Event listeners
-        document.getElementById('saveBtn').addEventListener('click', function() {
-            console.log('Save button clicked');
-            saveFile();
-        });
+        document.getElementById('saveBtn').addEventListener('click', saveFile);
         document.getElementById('refreshBtn').addEventListener('click', loadFileList);
+        
+        // Hamburger menu functionality
+        const hamburgerBtn = document.getElementById('hamburgerBtn');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        
+        function toggleSidebar() {
+            hamburgerBtn.classList.toggle('active');
+            sidebar.classList.toggle('mobile-hidden');
+            sidebarOverlay.classList.toggle('active');
+        }
+        
+        hamburgerBtn.addEventListener('click', toggleSidebar);
+        sidebarOverlay.addEventListener('click', toggleSidebar);
+        
+        // Close sidebar when selecting a file on mobile
+        if (window.innerWidth <= 768) {
+            // This will be handled through event delegation
+            document.getElementById('fileList').addEventListener('click', function(e) {
+                if (e.target.closest('.tree-file')) {
+                    // Close sidebar on mobile after selecting file
+                    if (window.innerWidth <= 768) {
+                        toggleSidebar();
+                    }
+                }
+            });
+        }
         
         // Keyboard shortcuts
         document.addEventListener('keydown', function(e) {
@@ -906,6 +1112,24 @@ if (isset($_GET['action'])) {
         
         // Load file list on page load
         loadFileList();
+        
+        // Initialize sidebar state for mobile
+        if (window.innerWidth <= 768) {
+            document.getElementById('sidebar').classList.add('mobile-hidden');
+        }
+        
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            if (window.innerWidth > 768) {
+                // Desktop view - ensure sidebar is visible
+                document.getElementById('sidebar').classList.remove('mobile-hidden');
+                document.getElementById('sidebarOverlay').classList.remove('active');
+                document.getElementById('hamburgerBtn').classList.remove('active');
+            } else if (!document.getElementById('sidebar').classList.contains('mobile-hidden')) {
+                // Switching to mobile - hide sidebar
+                document.getElementById('sidebar').classList.add('mobile-hidden');
+            }
+        });
     </script>
 </body>
 </html>
