@@ -15,10 +15,6 @@ define('PASSWORD', $config['password']);
 error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING);
 ini_set('display_errors', '0');
 
-// Configuration
-// define('REPOS_PATH', __DIR__ . '/../pages');  // Path to your markdown repos (supports relative paths like '../repos')
-// define('PASSWORD', 'wutZart');  // Change this! Default: changeme123
-
 // Resolve REPOS_PATH to absolute path (supports relative paths)
 function getReposPath() {
     $path = REPOS_PATH;
