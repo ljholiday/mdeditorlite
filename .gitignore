@@ -1,1 +1,6 @@
-repos
+# Instance-specific config
+config/
+
+# Runtime junk
+error_log
+

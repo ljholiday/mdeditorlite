@@ -4,13 +4,20 @@
  * A lightweight web-based markdown file editor
  */
 
+/* Load config */
+$config = require __DIR__ . '/config/config.php';
+
+define('REPOS_PATH', $config['repos_path']);
+define('PASSWORD', $config['password']);
+
+
 // Prevent any output before JSON responses
 error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING);
 ini_set('display_errors', '0');
 
 // Configuration
-define('REPOS_PATH', __DIR__ . '/../repos');  // Path to your markdown repos (supports relative paths like '../repos')
-define('PASSWORD', 'HaveMore4un!');  // Change this! Default: changeme123
+// define('REPOS_PATH', __DIR__ . '/../pages');  // Path to your markdown repos (supports relative paths like '../repos')
+// define('PASSWORD', 'wutZart');  // Change this! Default: changeme123
 
 // Resolve REPOS_PATH to absolute path (supports relative paths)
 function getReposPath() {
