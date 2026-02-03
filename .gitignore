@@ -1,5 +1,5 @@
 # Instance-specific config
-config/
+config/config.php
 
 # Runtime junk
 error_log
