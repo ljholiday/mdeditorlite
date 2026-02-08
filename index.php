@@ -4,11 +4,9 @@
  * A lightweight web-based markdown file editor
  */
 
-/* Load config */
-$config = require __DIR__ . '/config/config.php';
-
-define('REPOS_PATH', $config['repos_path']);
-define('PASSWORD', $config['password']);
+/* Configuration (single-file drop-in) */
+define('REPOS_PATH', '/home/ljholiday/docs');
+define('PASSWORD', 'HaveMore4un!');
 
 
 // Prevent any output before JSON responses
