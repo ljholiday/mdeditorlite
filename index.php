@@ -5,7 +5,7 @@
  */
 
 /* Configuration (single-file drop-in) */
-define('REPOS_PATH', '/home/ljholiday/docs');
+define('REPOS_PATH', '../pages');
 define('PASSWORD', 'HaveMore4un!');
 
 
